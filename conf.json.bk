@@ -1,0 +1,8 @@
+{
+  "auth_key": "群密码",
+  "bind_qq":  "群账号",
+  "sleep_time": 1,
+  "receive_groups": ["群1","群2"],
+  "send_groups": ["群1","群2"],
+  "debug_level": "debug"
+}

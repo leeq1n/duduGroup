@@ -1,0 +1,9 @@
+bk/
+bots/
+data/
+java/
+libs/
+logs/
+plugin*/
+
+conf.json
