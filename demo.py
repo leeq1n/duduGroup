@@ -80,6 +80,8 @@ class QQBot:
                     text = item['messageChain'][-1]['text']
                 elif type == 'Face':
                     text = item['messageChain'][-1]['faceId']
+                elif type == 'At':
+                    text = str(item['messageChain'][-1]['target'])
                 else:
                     logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
                     continue
@@ -96,13 +98,54 @@ class QQBot:
             return res['data']
         return 0
 
+def sendPokeMsgToGroup(self, session, group, msg):
+        text = msg['text']
+        type = msg['type']
+        name = msg['name']
+        group_id = msg['groupId']
+        group_name = msg['groupName']
+        content1 = "消息：{}".format(text)
+        # content1 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n{}".format(
+        #     name, group_id, group_name, text)
+        # content2 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n".format(
+        #     name, group_id, group_name)
+        logger.DebugLog(">> 消息类型：" + type)
+        if type == 'Plain':
+            message = [{"type": type, "text": content1}]
+        elif type == 'Image':
+            message = [
+                {"type": 'Plain', "text": content2},
+                {"type": type, "url": text}]
+        elif type == 'Face':
+            message = [{"type": 'Plain', "text": content2},
+                       {"type": type, "faceId": text}]
+        else:
+            logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
+            return 0
+        data = {
+                "sessionKey": session,
+                "group": group,
+                "messageChain": message
+                }
+        logger.DebugLog(">> 消息内容：" + str(data))
+        url = self.addr + 'sendGroupMessage'
+        try:
+            res = requests.post(url, data=json.dumps(data)).json()
+        except:
+            logger.DebugLog(">> 转发失败")
+            return 0
+        logger.DebugLog(">> 请求返回：" + str(res))
+        if res['code'] == 0:
+            return res['messageId']
+        return 0
+
     def sendMsgToGroup(self, session, group, msg):
         text = msg['text']
         type = msg['type']
         name = msg['name']
         group_id = msg['groupId']
         group_name = msg['groupName']
-        content1 = "【机器人消息】\n用户：{}\n消息：{}".format(name, text)
+        content1 = "消息：{}".format(text)
         # content1 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n{}".format(
         #     name, group_id, group_name, text)
         # content2 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n".format(
@@ -179,16 +222,21 @@ class QQBot:
         # 如果需要更改发送的消息，请按照如下格式:
         # data[0]['text'] = '消息'
         data = bot.parseGroupMsg(data)
-        # logger.DebugLog(data)
-        if len(data) == 0 or not data[0]['type'] == 'Plain' :
-            # 第一个条件，当消息来源于好友，由于parse只解析了群的消息，data会变成[]，
-            # 此时会数据越界所以特判（后续可以直接在父函数中增加对好友消息的消息处理）
-            # 第二个条件，如果不为文本消息，则return
+        logger.DebugLog(data)
+        if len(data) == 0:
             return
 
-        if data[0]['text'] == '/repeat':
-            bot.sendMsgToGroup(session, send_group, data[0])
-
+        if data[0]['type'] == 'Plain':
+            if data[0]['text'] == '/repeat':
+                bot.sendMsgToGroup(session, send_group, data[0])
+            if data[0]['text'] == '你希望有返回的话':
+                data[0]['text'] = '你希望答复的话'
+                bot.sendMsgToGroup(session, send_group, data[0])
+        elif data[0]['type'] == 'At':
+            if data[0]['text'] == '458693766':
+                data[0]['type'] = 'Plain'
+                data[0]['text'] = '杜杜大傻逼'
+                bot.sendMsgToGroup(session, send_group, data[0])
 
 
 logger = Logger()
@@ -223,7 +271,7 @@ def qqTransfer():
                 logger.DebugLog('消息为空')
                 continue
             # logger.DebugLog('解析消息内容')
-            # logger.DebugLog(data)
+            logger.DebugLog(data)
             bot.msgManagement(session, send_groups[0], data)
             # logger.DebugLog('转发消息内容')
             # bot.sendFriendMessage(session, data[0]['sender']['id'], 'hello')
