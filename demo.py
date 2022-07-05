@@ -178,7 +178,7 @@ class QQBot:
         # data[0]['text']为群里刚收到的文本
         # 如果需要更改发送的消息，请按照如下格式:
         # data[0]['text'] = '消息'
-        if data[0]['text'] == '/repeat':
+        if data[0]['type'] == 'Plain' and data[0]['text'] == '/repeat':
             bot.sendMsgToGroup(session, send_group, data[0])
 
 

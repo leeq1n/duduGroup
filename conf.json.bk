@@ -1,6 +1,6 @@
 {
-  "auth_key": "群密码",
-  "bind_qq":  "群账号",
+  "auth_key": "密码",
+  "bind_qq":  "qq账号",
   "sleep_time": 1,
   "receive_groups": ["群1","群2"],
   "send_groups": ["群1","群2"],
