@@ -178,6 +178,12 @@ class QQBot:
         # data[0]['text']为群里刚收到的文本
         # 如果需要更改发送的消息，请按照如下格式:
         # data[0]['text'] = '消息'
+        data = bot.parseGroupMsg(data)
+        # logger.DebugLog(data)
+        if len(data)==0:
+            # 当消息来源于好友，由于parse只解析了群的消息，data会变成[]，此时会数据越界
+            # 所以特判（后续可以直接在父函数中增加对好友消息的消息处理）
+            return
         if data[0]['type'] == 'Plain' and data[0]['text'] == '/repeat':
             bot.sendMsgToGroup(session, send_group, data[0])
 
@@ -214,10 +220,8 @@ def qqTransfer():
             if len(data) == 0:
                 logger.DebugLog('消息为空')
                 continue
-            logger.DebugLog(data)
-            logger.DebugLog('解析消息内容')
-            data = bot.parseGroupMsg(data)
-            logger.DebugLog(data)
+            # logger.DebugLog('解析消息内容')
+            # logger.DebugLog(data)
             bot.msgManagement(session, send_groups[0], data)
             # logger.DebugLog('转发消息内容')
             # bot.sendFriendMessage(session, data[0]['sender']['id'], 'hello')
