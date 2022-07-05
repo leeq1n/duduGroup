@@ -180,11 +180,13 @@ class QQBot:
         # data[0]['text'] = '消息'
         data = bot.parseGroupMsg(data)
         # logger.DebugLog(data)
-        if len(data)==0:
-            # 当消息来源于好友，由于parse只解析了群的消息，data会变成[]，此时会数据越界
-            # 所以特判（后续可以直接在父函数中增加对好友消息的消息处理）
+        if len(data) == 0 or not data[0]['type'] == 'Plain' :
+            # 第一个条件，当消息来源于好友，由于parse只解析了群的消息，data会变成[]，
+            # 此时会数据越界所以特判（后续可以直接在父函数中增加对好友消息的消息处理）
+            # 第二个条件，如果不为文本消息，则return
             return
-        if data[0]['type'] == 'Plain' and data[0]['text'] == '/repeat':
+
+        if data[0]['text'] == '/repeat':
             bot.sendMsgToGroup(session, send_group, data[0])
 
 
