@@ -6,6 +6,8 @@ from flask import Flask, request
 from time import sleep
 import threading
 
+from main import *
+
 class Logger:
     def __init__(self, level='debug'):
         self.level = level
@@ -67,107 +69,44 @@ class QQBot:
             return res['data']
         return None
 
-    def parseGroupMsg(self, data):
-        res = []
-        if data is None:
-            return res
-        for item in data:
-            if item['type'] == 'GroupMessage':
-                type = item['messageChain'][-1]['type']
-                if type == 'Image':
-                    text = item['messageChain'][-1]['url']
-                elif type == 'Plain':
-                    text = item['messageChain'][-1]['text']
-                elif type == 'Face':
-                    text = item['messageChain'][-1]['faceId']
-                elif type == 'At':
-                    text = str(item['messageChain'][-1]['target'])
-                else:
-                    logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
-                    continue
-                name = item['sender']['memberName']
-                group_id = str(item['sender']['group']['id'])
-                group_name = item['sender']['group']['name']
-                res.append({'text': text, 'type': type, 'name': name, 'groupId': group_id, 'groupName': group_name})
-        return res
-
     def getMessageCount(self, session):
         url = self.addr + 'countMessage?sessionKey='+session
         res = requests.get(url).json()
         if res['code'] == 0:
             return res['data']
         return 0
+    
+    def sendMsgToGroup(self, session, group, messages):
+        sendMessage = []
+        for message in messages:
+            type = message.msgType
+            text = message.msg
+            # content1 = "消息：{}".format(text)
+            logger.DebugLog(">> 消息类型：" + type)
 
-def sendPokeMsgToGroup(self, session, group, msg):
-        text = msg['text']
-        type = msg['type']
-        name = msg['name']
-        group_id = msg['groupId']
-        group_name = msg['groupName']
-        content1 = "消息：{}".format(text)
-        # content1 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n{}".format(
-        #     name, group_id, group_name, text)
-        # content2 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n".format(
-        #     name, group_id, group_name)
-        logger.DebugLog(">> 消息类型：" + type)
-        if type == 'Plain':
-            message = [{"type": type, "text": content1}]
-        elif type == 'Image':
-            message = [
-                {"type": 'Plain', "text": content2},
-                {"type": type, "url": text}]
-        elif type == 'Face':
-            message = [{"type": 'Plain', "text": content2},
-                       {"type": type, "faceId": text}]
-        else:
-            logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
-            return 0
+            print('type:',type,'typeTrans[type]',typeTrans[type],"text",text,'---------------')
+            if type in typeTrans:
+                sendMessage.append({"type": type, typeTrans[type]: text})
+            else:
+                logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
+                return
+            # if type == 'Plain':
+            #     sendMessage = [{"type": type, "text": content1}]
+            # elif type == 'Image':
+            #     sendMessage = [
+            #         {"type": 'Plain', "text": content2},
+            #         {"type": type, "url": text}]
+            # elif type == 'Face':
+            #     sendMessage = [{"type": 'Plain', "text": content2},
+            #                {"type": type, "faceId": text}]
+            # else:
+            #     logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
+            #     return 0
         data = {
-                "sessionKey": session,
-                "group": group,
-                "messageChain": message
-                }
-        logger.DebugLog(">> 消息内容：" + str(data))
-        url = self.addr + 'sendGroupMessage'
-        try:
-            res = requests.post(url, data=json.dumps(data)).json()
-        except:
-            logger.DebugLog(">> 转发失败")
-            return 0
-        logger.DebugLog(">> 请求返回：" + str(res))
-        if res['code'] == 0:
-            return res['messageId']
-        return 0
-
-    def sendMsgToGroup(self, session, group, msg):
-        text = msg['text']
-        type = msg['type']
-        name = msg['name']
-        group_id = msg['groupId']
-        group_name = msg['groupName']
-        content1 = "消息：{}".format(text)
-        # content1 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n{}".format(
-        #     name, group_id, group_name, text)
-        # content2 = "【消息中转助手】\n用户：{}\n群号：{}\n群名：{}\n消息：\n".format(
-        #     name, group_id, group_name)
-        logger.DebugLog(">> 消息类型：" + type)
-        if type == 'Plain':
-            message = [{"type": type, "text": content1}]
-        elif type == 'Image':
-            message = [
-                {"type": 'Plain', "text": content2},
-                {"type": type, "url": text}]
-        elif type == 'Face':
-            message = [{"type": 'Plain', "text": content2},
-                       {"type": type, "faceId": text}]
-        else:
-            logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
-            return 0
-        data = {
-                "sessionKey": session,
-                "group": group,
-                "messageChain": message
-                }
+            "sessionKey": session,
+            "group": group,
+            "messageChain": sendMessage
+        }
         logger.DebugLog(">> 消息内容：" + str(data))
         url = self.addr + 'sendGroupMessage'
         try:
@@ -196,13 +135,22 @@ def sendPokeMsgToGroup(self, session, group, msg):
                     if res != 0:
                         logger.TraceLog(">> 转发成功！{}".format(g))
 
-    def sendFriendMessage(self, session, qq, msg):
+    def sendFriendMessage(self, session, qq, messages):
+        sendMessage = []
+        for message in messages:
+            type = message.msgType
+            text = message.msg
+            if type in typeTrans:
+                sendMessage.append({"type": type, typeTrans[type]: text})
+            else:
+                logger.TraceLog(">> 当前消息类型暂不支持转发：=> "+type)
+                return
+
         data = {
           "sessionKey": session,
           "target": qq,
-          "messageChain": [
-            { "type": "Plain", "text": msg },
-          ]
+          "messageChain": sendMessage
+          #   [{ "type": "Plain", "text": msg }, ]
         }
         url = self.addr + 'sendFriendMessage'
         try:
@@ -214,29 +162,95 @@ def sendPokeMsgToGroup(self, session, group, msg):
             return res['messageId']
         return 0
 
-    def msgManagement(self, session, send_group, data):
-        # 传参：
-        # session为对话窗口，send_group为需要发送消息的群号，data[0]为第一条消息
-        # 说明：
-        # data[0]['text']为群里刚收到的文本
-        # 如果需要更改发送的消息，请按照如下格式:
-        # data[0]['text'] = '消息'
-        data = bot.parseGroupMsg(data)
-        logger.DebugLog(data)
-        if len(data) == 0:
-            return
+    def parseMsgChain(self, msgChain):
+        for message in msgChain:
+            if message['type'] == 'Source':
+                msgChainList = [MessageRecv(msgType = 'Source', msg = 'None')]
+            elif message['type'] == 'Plain':
+                msgChainList.append(MessageRecv(msgType = 'Plain', msg = message['text']))
+            elif message['type'] == 'At':
+                msgChainList.append(MessageRecv(msgType = 'At', msg = message['target']))
+            elif message['type'] == 'Image':
+                msgChainList.append(MessageRecv(msgType = 'Image', msg = message['url']))
+            elif message['type'] == 'Face':
+                msgChainList.append(MessageRecv(msgType = 'Face', msg = message['faceId']))
+            else:
+                logger.TraceLog(">> 当前消息类型暂不支持转发：=> " + message['type'])
+                continue
+        return msgChainList
 
-        if data[0]['type'] == 'Plain':
-            if data[0]['text'] == '/repeat':
-                bot.sendMsgToGroup(session, send_group, data[0])
-            if data[0]['text'] == '你希望有返回的话':
-                data[0]['text'] = '你希望答复的话'
-                bot.sendMsgToGroup(session, send_group, data[0])
-        elif data[0]['type'] == 'At':
-            if data[0]['text'] == '458693766':
-                data[0]['type'] = 'Plain'
-                data[0]['text'] = '杜杜大傻逼'
-                bot.sendMsgToGroup(session, send_group, data[0])
+
+    def parseData(self, data):
+        res = []
+        if data is None:
+            return res
+
+        for item in data:
+            if item['type'] == 'GroupMessage':
+                msgChain = item['messageChain']
+                sender = item['sender']
+                recv = GroupMessageRecvList(groupId = str(sender['group']['id']), groupName = sender['group']['name'], senderId = str(sender['id']), senderName = sender['memberName'], messageChain = bot.parseMsgChain(msgChain))
+                return recv
+            elif item['type'] == 'FriendMessage':
+                msgChain = item['messageChain']
+                sender = item['sender']
+                recv = FriendMessageRecvList(senderId = sender['id'], senderName = sender['nickname'],senderRemark = sender['remark'],messageChain = bot.parseMsgChain(msgChain))
+                return recv
+            else:
+                logger.TraceLog(">> 不知道你这从哪来的消息啊：=> " + item['type'])
+
+    def genSendFriendMessage(self, recvData):
+        msg = recvData.messageChain
+        for m in msg:
+            if m.msgType == 'Source':
+                sendData = []
+            elif m.msgType == 'Plain':
+                if m.msg == '/alive':
+                    sendData.append(MessageRecv(msgType = 'Plain', msg = '女仆酱生存中'))
+            else:
+                continue
+        return sendData
+
+    def genSendGroupMessage(self, recvData):
+        msg = recvData.messageChain
+        for m in msg:
+            if m.msgType == 'Source':
+                sendData = []
+            elif m.msgType == 'Plain':
+                if m.msg == '/alive':
+                    sendData.append(MessageRecv(msgType = 'Plain', msg = '女仆酱生存中'))
+            elif m.msgType == 'At':
+                if str(m.msg) == '458693766':
+                    sendData.append(MessageRecv(msgType = 'Plain', msg = '杜杜？世界上最蠢的人'))
+            else:
+                continue
+        return sendData
+
+    def msgManagement(self, session, send_group, data):
+
+        # 对得到的消息data进行解析
+        recvData = bot.parseData(data)
+        logger.DebugLog('\n\n解析后的数据 {}'.format(recvData))
+        if recvData.groupType == 'GroupMessage':
+            sendData = bot.genSendGroupMessage(recvData)
+            bot.sendMsgToGroup(session, send_group, sendData)
+        elif recvData.groupType == 'FriendMessage':
+            sendData = bot.genSendFriendMessage(recvData)
+            bot.sendFriendMessage(session, recvData.senderId, sendData)
+        #if len(data) == 0:
+        #    return
+
+        #if data[0]['type'] == 'Plain':
+        #    if data[0]['text'] == '/repeat':
+        #        bot.sendMsgToGroup(session, send_group, data[0])
+        #    if data[0]['text'] == '你希望有返回的话':
+        #        data[0]['text'] = '你希望答复的话'
+        #        bot.sendMsgToGroup(session, send_group, data[0])
+        #elif data[0]['type'] == 'At':
+        #    if data[0]['text'] == '458693766':
+        #        data[0]['type'] = 'Plain'
+        #        data[0]['text'] = '杜杜大傻逼'
+        #        bot.sendMsgToGroup(session, send_group, data[0])
 
 
 logger = Logger()
